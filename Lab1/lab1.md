@@ -5,8 +5,6 @@ Install Ubuntu 16.04: https://releases.ubuntu.com/16.04/
 
 
 ## Install Libcap
-In Ubuntu 16.04 libcap library already been installed
-
 ```bash
 # install additional
 $ apt-get install wget
@@ -199,3 +197,28 @@ $ sudo setcap cap_dac_read_search=ep use_cap
 - __Question d__: The fourth open call will always fail, regardless of the EUID and the file permissions, because cap_drop(CAP_DAC_READ_SEARCH) drops (removes) the CAP_DAC_READ_SEARCH capability from the process’s bounding set. This means that even if cap_enable(CAP_DAC_READ_SEARCH) is called later, it will have no effect. Therefore, the process cannot bypass file read permission checks and directory read and execute permission checks anymore. Hence, the open call will fail with permission denied error.
 
 - __Question e__: The fifth open call will never be executed, because cap_enable(CAP_DAC_READ_SEARCH) will always return -1 and cause the program to exit with an error code. This is because cap_enable(CAP_DAC_READ_SEARCH) can only enable a capability that is already in the process’s bounding set, but cap_drop(CAP_DAC_READ_SEARCH) has removed it from there in __question d__. Therefore, cap_enable(CAP_DAC_READ_SEARCH) will fail with invalid argument error and terminate the program.
+
+
+__Question 4:__ If we want to dynamically adjust the amount of privileges in ACL-based access control, what should we do? Compared to capabilities, which access control is more convenient to do so?
+
+- To dynamically adjust the amount of privileges in *ACL-based access control*, we need to modify the ACLs of the objects that we want to change the permissions for. For example, if we want to grant Bob read access to file1, we need to update the ACL of file1 and set Bob’s read right to yes. This requires finding the object and its ACL, which might be stored in a separate location from the object itself.
+
+- To dynamically adjust the amount of privileges in *capabilities*, we need to modify the capabilities of the subjects that we want to change the permissions for.For example, if we want to grant Bob read access to file1, we need to update Bob’s capability and add file1 with read right to his list. This requires finding the subject and its capability, which might be stored with the subject itself or in a separate location.
+
+- Compared to capabilities, ACL-based access control might be more convenient to do so if we want to change the permissions for many subjects on a single object at once, or if we want to review who has access to a particular object. However, capabilities might be more convenient if we want to change the permissions for a single subject on many objects at once, or if we want to delegate or revoke permissions easily by passing or deleting capabilities.
+
+__Question 5:__ After a program (running as normal user) disables a capability A, it is compromised by a buffer-overflow attack. The attacker successfully injectes his malicious code into this program’s stack space and starts to run it. Can this attacker use the capability A? What if the process deleted the capability, can the attacker uses the capability?
+
+- Capabilities are a way of granting specific privileges to processes in Linux, without giving them full root access. There are different types of capabilities, such as CAP_NET_RAW (to use raw sockets), CAP_SYS_TIME (to set the system clock), CAP_SYS_ADMIN (to perform various administrative tasks), etc. Each process has three sets of capabilities: effective, permitted, and inheritable. The effective set determines which capabilities are currently enabled for the process, the permitted set determines which capabilities can be enabled or disabled by the process, and the inheritable set determines which capabilities are preserved across execve calls.
+
+- If a program disables a capability A, it means that it removes that capability from its effective set, but not necessarily from its permitted or inheritable sets. This means that the program can still re-enable that capability later if it is in its permitted set. However, if a program deletes a capability A, it means that it removes that capability from all three sets: effective, permitted, and inheritable. This means that the program cannot re-enable that capability later, unless it gains root privileges or executes another program that has that capability.
+
+- If the program is compromised by a buffer-overflow attack and the attacker injects malicious code into its stack space, the attacker can only use the capabilities that are in the effective set of the process at the time of the attack. If the program disabled capability A before the attack, then the attacker cannot use that capability, unless they can somehow re-enable it by modifying the process’s effective set (which might require another capability). If the program deleted capability A before the attack, then the attacker cannot use that capability at all, even if they can modify the process’s effective set.
+
+__Question 6:__ The same as the previous question, except replacing the buffer-overflow attack with the race condition attack. Namely, if the attacker exploites the race condition in this program, can he use the capability A if the capability is disabled? What if the capability is deleted?
+
+- A race condition attack is a type of exploit that takes advantage of a vulnerability in the timing or ordering of operations in a system. For example, if a program checks for a condition before performing an action, but the condition changes between the check and the action, then an attacker might be able to interfere with the expected behavior of the program.
+
+- If a program disables a capability A, but does not delete it, then it might be vulnerable to a race condition attack if an attacker can modify the process’s effective set of capabilities between the check and the action. For example, if the program checks for capability A before opening a file, but then disables capability A before actually opening the file, then an attacker might be able to re-enable capability A for the process and cause it to open a different file than intended.
+
+- If a program deletes a capability A, then it is not vulnerable to a race condition attack involving that capability, because the attacker cannot re-enable that capability for the process. However, the program might still be vulnerable to other types of race condition attacks involving other capabilities or resources.
